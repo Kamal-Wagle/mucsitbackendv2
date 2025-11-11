@@ -38,7 +38,6 @@ router.get(
 // Get assignment by ID (authenticated)
 router.get(
   '/:id',
-  authenticate,
   param('id').isMongoId().withMessage('Invalid assignment ID'),
   getAssignmentById
 );
