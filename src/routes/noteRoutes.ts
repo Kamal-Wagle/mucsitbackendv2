@@ -38,7 +38,6 @@ router.get(
 // Get note by ID (authenticated)
 router.get(
   '/:id',
-  authenticate,
   param('id').isMongoId().withMessage('Invalid note ID'),
   getNoteById
 );
