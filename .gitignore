@@ -1,2 +1,6 @@
 node_modules
 .env
+
+# now add all required field in models like also feature purpose which need  
+# add fileurl field in evry model  and image url optional in every model
+# also give seo keyword from backend also 

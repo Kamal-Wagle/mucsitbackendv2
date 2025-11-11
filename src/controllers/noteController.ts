@@ -4,6 +4,7 @@ import { AuthRequest } from '../middleware/auth';
 import { validationResult } from 'express-validator';
 import mongoose from 'mongoose';
 
+// Get all notes
 export const getAllNotes = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const notes = await Note.find()
@@ -20,6 +21,7 @@ export const getAllNotes = async (req: AuthRequest, res: Response): Promise<void
   }
 };
 
+// Get note by ID
 export const getNoteById = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
@@ -43,6 +45,7 @@ export const getNoteById = async (req: AuthRequest, res: Response): Promise<void
   }
 };
 
+// Create a new note
 export const createNote = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const errors = validationResult(req);
@@ -51,11 +54,39 @@ export const createNote = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    const { title, content } = req.body;
+    const {
+      title,
+      content,
+      description,
+      subject,
+      semester,
+      faculty,
+      year,
+      fileUrl,
+      imageUrl,
+      seoKeywords,
+      seoDescription,
+      isPublished
+    } = req.body;
+
+    if (!fileUrl) {
+      res.status(400).json({ error: 'File URL is required' });
+      return;
+    }
 
     const note = new Note({
       title,
       content,
+      description,
+      subject,
+      semester,
+      faculty,
+      year,
+      fileUrl,
+      imageUrl,
+      seoKeywords,
+      seoDescription,
+      isPublished: isPublished ?? true,
       author: req.user!.userId
     });
 
@@ -72,6 +103,7 @@ export const createNote = async (req: AuthRequest, res: Response): Promise<void>
   }
 };
 
+// Update an existing note
 export const updateNote = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const errors = validationResult(req);
@@ -81,16 +113,17 @@ export const updateNote = async (req: AuthRequest, res: Response): Promise<void>
     }
 
     const { id } = req.params;
-    const { title, content } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       res.status(400).json({ error: 'Invalid note ID' });
       return;
     }
 
+    const updateData: Partial<typeof req.body> = req.body;
+
     const note = await Note.findByIdAndUpdate(
       id,
-      { title, content },
+      updateData,
       { new: true, runValidators: true }
     ).populate('author', 'name email');
 
@@ -109,6 +142,7 @@ export const updateNote = async (req: AuthRequest, res: Response): Promise<void>
   }
 };
 
+// Delete a note
 export const deleteNote = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;

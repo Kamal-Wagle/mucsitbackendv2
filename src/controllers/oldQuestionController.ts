@@ -4,6 +4,7 @@ import { AuthRequest } from '../middleware/auth';
 import { validationResult } from 'express-validator';
 import mongoose from 'mongoose';
 
+// Get all old questions
 export const getAllOldQuestions = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const oldQuestions = await OldQuestion.find()
@@ -20,6 +21,7 @@ export const getAllOldQuestions = async (req: AuthRequest, res: Response): Promi
   }
 };
 
+// Get old question by ID
 export const getOldQuestionById = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
@@ -43,6 +45,7 @@ export const getOldQuestionById = async (req: AuthRequest, res: Response): Promi
   }
 };
 
+// Create a new old question
 export const createOldQuestion = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const errors = validationResult(req);
@@ -51,13 +54,43 @@ export const createOldQuestion = async (req: AuthRequest, res: Response): Promis
       return;
     }
 
-    const { title, question, answer, subject } = req.body;
+    const {
+      title,
+      question,
+      answer,
+      subject,
+      semester,
+      faculty,
+      year,
+      description,
+      fileUrl,
+      imageUrl,
+      seoKeywords,
+      seoDescription,
+      difficulty,
+      isPublished
+    } = req.body;
+
+    if (!fileUrl) {
+      res.status(400).json({ error: 'File URL is required' });
+      return;
+    }
 
     const oldQuestion = new OldQuestion({
       title,
       question,
       answer,
       subject,
+      semester,
+      faculty,
+      year,
+      description,
+      fileUrl,
+      imageUrl,
+      seoKeywords,
+      seoDescription,
+      difficulty,
+      isPublished: isPublished ?? true,
       author: req.user!.userId
     });
 
@@ -74,6 +107,7 @@ export const createOldQuestion = async (req: AuthRequest, res: Response): Promis
   }
 };
 
+// Update an old question
 export const updateOldQuestion = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const errors = validationResult(req);
@@ -83,16 +117,17 @@ export const updateOldQuestion = async (req: AuthRequest, res: Response): Promis
     }
 
     const { id } = req.params;
-    const { title, question, answer, subject } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       res.status(400).json({ error: 'Invalid old question ID' });
       return;
     }
 
+    const updateData: Partial<typeof req.body> = req.body;
+
     const oldQuestion = await OldQuestion.findByIdAndUpdate(
       id,
-      { title, question, answer, subject },
+      updateData,
       { new: true, runValidators: true }
     ).populate('author', 'name email');
 
@@ -111,6 +146,7 @@ export const updateOldQuestion = async (req: AuthRequest, res: Response): Promis
   }
 };
 
+// Delete an old question
 export const deleteOldQuestion = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;

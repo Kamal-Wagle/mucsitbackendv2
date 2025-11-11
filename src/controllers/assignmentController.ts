@@ -1,18 +1,32 @@
+// controllers/assignmentController.ts
 import { Response } from 'express';
 import { Assignment } from '../models/Assignment';
 import { AuthRequest } from '../middleware/auth';
 import { validationResult } from 'express-validator';
 import mongoose from 'mongoose';
 
+// ✅ Get All Assignments (with future filtering/sorting support)
 export const getAllAssignments = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const assignments = await Assignment.find()
+    const { semester, subject, faculty, difficulty, sortBy } = req.query;
+
+    const filters: any = {};
+    if (semester) filters.semester = semester;
+    if (subject) filters.subject = subject;
+    if (faculty) filters.faculty = faculty;
+    if (difficulty) filters.difficulty = difficulty;
+
+    const sortOptions: any = {};
+    if (sortBy === 'date') sortOptions.createdAt = -1;
+    if (sortBy === 'due') sortOptions.dueDate = 1;
+
+    const assignments = await Assignment.find(filters)
       .populate('author', 'name email')
-      .sort({ createdAt: -1 });
+      .sort(sortOptions || { createdAt: -1 });
 
     res.json({
       count: assignments.length,
-      assignments
+      assignments,
     });
   } catch (error) {
     console.error('Get assignments error:', error);
@@ -20,6 +34,7 @@ export const getAllAssignments = async (req: AuthRequest, res: Response): Promis
   }
 };
 
+// ✅ Get Assignment by ID
 export const getAssignmentById = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
@@ -30,7 +45,6 @@ export const getAssignmentById = async (req: AuthRequest, res: Response): Promis
     }
 
     const assignment = await Assignment.findById(id).populate('author', 'name email');
-
     if (!assignment) {
       res.status(404).json({ error: 'Assignment not found' });
       return;
@@ -43,6 +57,7 @@ export const getAssignmentById = async (req: AuthRequest, res: Response): Promis
   }
 };
 
+// ✅ Create Assignment
 export const createAssignment = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const errors = validationResult(req);
@@ -51,13 +66,41 @@ export const createAssignment = async (req: AuthRequest, res: Response): Promise
       return;
     }
 
-    const { title, description, dueDate } = req.body;
+    const {
+      title,
+      description,
+      instructions,
+      subject,
+      semester,
+      faculty,
+      year,
+      dueDate,
+      fileUrl,
+      imageUrl,
+      seoKeywords,
+      seoDescription,
+      totalMarks,
+      difficulty,
+      isPublished,
+    } = req.body;
 
     const assignment = new Assignment({
       title,
       description,
+      instructions,
+      subject,
+      semester,
+      faculty,
+      year,
       dueDate,
-      author: req.user!.userId
+      fileUrl,
+      imageUrl,
+      seoKeywords,
+      seoDescription,
+      totalMarks,
+      difficulty,
+      isPublished,
+      author: req.user!.userId,
     });
 
     await assignment.save();
@@ -65,7 +108,7 @@ export const createAssignment = async (req: AuthRequest, res: Response): Promise
 
     res.status(201).json({
       message: 'Assignment created successfully',
-      assignment
+      assignment,
     });
   } catch (error) {
     console.error('Create assignment error:', error);
@@ -73,25 +116,21 @@ export const createAssignment = async (req: AuthRequest, res: Response): Promise
   }
 };
 
+// ✅ Update Assignment
 export const updateAssignment = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      res.status(400).json({ errors: errors.array() });
-      return;
-    }
-
     const { id } = req.params;
-    const { title, description, dueDate } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       res.status(400).json({ error: 'Invalid assignment ID' });
       return;
     }
 
+    const updates = req.body;
+
     const assignment = await Assignment.findByIdAndUpdate(
       id,
-      { title, description, dueDate },
+      updates,
       { new: true, runValidators: true }
     ).populate('author', 'name email');
 
@@ -102,7 +141,7 @@ export const updateAssignment = async (req: AuthRequest, res: Response): Promise
 
     res.json({
       message: 'Assignment updated successfully',
-      assignment
+      assignment,
     });
   } catch (error) {
     console.error('Update assignment error:', error);
@@ -110,6 +149,7 @@ export const updateAssignment = async (req: AuthRequest, res: Response): Promise
   }
 };
 
+// ✅ Delete Assignment
 export const deleteAssignment = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
@@ -120,7 +160,6 @@ export const deleteAssignment = async (req: AuthRequest, res: Response): Promise
     }
 
     const assignment = await Assignment.findByIdAndDelete(id);
-
     if (!assignment) {
       res.status(404).json({ error: 'Assignment not found' });
       return;
@@ -128,7 +167,7 @@ export const deleteAssignment = async (req: AuthRequest, res: Response): Promise
 
     res.json({
       message: 'Assignment deleted successfully',
-      assignmentId: id
+      assignmentId: id,
     });
   } catch (error) {
     console.error('Delete assignment error:', error);

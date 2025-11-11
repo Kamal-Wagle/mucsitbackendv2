@@ -4,6 +4,16 @@ import { AuthRequest } from '../middleware/auth';
 import { validationResult } from 'express-validator';
 import mongoose from 'mongoose';
 
+// okay
+// okay
+// okay
+
+
+
+
+
+
+// Get all blogs
 export const getAllBlogs = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const blogs = await Blog.find()
@@ -20,6 +30,7 @@ export const getAllBlogs = async (req: AuthRequest, res: Response): Promise<void
   }
 };
 
+// Get blog by ID
 export const getBlogById = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
@@ -43,6 +54,7 @@ export const getBlogById = async (req: AuthRequest, res: Response): Promise<void
   }
 };
 
+// Create a new blog
 export const createBlog = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const errors = validationResult(req);
@@ -51,11 +63,37 @@ export const createBlog = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    const { title, content } = req.body;
+    const {
+      title,
+      sections,
+      excerpt,
+      category,
+      description,
+      fileUrl,
+      seoKeywords,
+      seoDescription,
+      isPublished,
+      isFeatured,
+      readTimeMinutes
+    } = req.body;
+
+    if (!fileUrl) {
+      res.status(400).json({ error: 'File URL is required' });
+      return;
+    }
 
     const blog = new Blog({
       title,
-      content,
+      sections,
+      excerpt,
+      category,
+      description,
+      fileUrl,
+      seoKeywords,
+      seoDescription,
+      isPublished: isPublished ?? true,
+      isFeatured: isFeatured ?? false,
+      readTimeMinutes,
       author: req.user!.userId
     });
 
@@ -72,6 +110,7 @@ export const createBlog = async (req: AuthRequest, res: Response): Promise<void>
   }
 };
 
+// Update blog
 export const updateBlog = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const errors = validationResult(req);
@@ -81,18 +120,16 @@ export const updateBlog = async (req: AuthRequest, res: Response): Promise<void>
     }
 
     const { id } = req.params;
-    const { title, content } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       res.status(400).json({ error: 'Invalid blog ID' });
       return;
     }
 
-    const blog = await Blog.findByIdAndUpdate(
-      id,
-      { title, content },
-      { new: true, runValidators: true }
-    ).populate('author', 'name email');
+    const updateData: Partial<typeof req.body> = req.body;
+
+    const blog = await Blog.findByIdAndUpdate(id, updateData, { new: true, runValidators: true })
+      .populate('author', 'name email');
 
     if (!blog) {
       res.status(404).json({ error: 'Blog not found' });
@@ -109,6 +146,8 @@ export const updateBlog = async (req: AuthRequest, res: Response): Promise<void>
   }
 };
 
+
+// Delete a blog
 export const deleteBlog = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
