@@ -4,19 +4,91 @@ import { AuthRequest } from '../middleware/auth';
 import { validationResult } from 'express-validator';
 import mongoose from 'mongoose';
 
-// Get all old questions
-export const getAllOldQuestions = async (req: AuthRequest, res: Response): Promise<void> => {
+// Search & Filter Old Questions
+export const searchAndFilterOldQuestions = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const oldQuestions = await OldQuestion.find()
+    const {
+      search,
+      subject,
+      semester,
+      faculty,
+      difficulty,
+      sortBy,
+      order,
+      page = 1,
+      limit = 10
+    } = req.query;
+
+    const query: any = {};
+
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { question: { $regex: search, $options: 'i' } },
+        { answer: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    if (subject) query.subject = subject;
+    if (semester) query.semester = semester;
+    if (faculty) query.faculty = faculty;
+    if (difficulty) query.difficulty = difficulty;
+
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const sortOrder: any = {};
+    if (sortBy) {
+      sortOrder[sortBy as string] = order === 'asc' ? 1 : -1;
+    } else {
+      sortOrder.createdAt = -1;
+    }
+
+    const oldQuestions = await OldQuestion.find(query)
       .populate('author', 'name email')
-      .sort({ createdAt: -1 });
+      .sort(sortOrder)
+      .skip(skip)
+      .limit(Number(limit));
+
+    const total = await OldQuestion.countDocuments(query);
 
     res.json({
       count: oldQuestions.length,
+      total,
+      page: Number(page),
+      totalPages: Math.ceil(total / Number(limit)),
       oldQuestions
     });
   } catch (error) {
-    console.error('Get old questions error:', error);
+    console.error('Search & Filter old questions error:', error);
+    res.status(500).json({ error: 'Server error while searching old questions' });
+  }
+};
+
+// Get all old questions with pagination
+export const getAllOldQuestionsPaginated = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { page = 1, limit = 10 } = req.query;
+
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const oldQuestions = await OldQuestion.find()
+      .populate('author', 'name email')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(Number(limit));
+
+    const total = await OldQuestion.countDocuments();
+
+    res.json({
+      count: oldQuestions.length,
+      total,
+      page: Number(page),
+      totalPages: Math.ceil(total / Number(limit)),
+      oldQuestions
+    });
+  } catch (error) {
+    console.error('Get all old questions paginated error:', error);
     res.status(500).json({ error: 'Server error while fetching old questions' });
   }
 };
@@ -45,7 +117,7 @@ export const getOldQuestionById = async (req: AuthRequest, res: Response): Promi
   }
 };
 
-// Create a new old question
+// Create old question (admin)
 export const createOldQuestion = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const errors = validationResult(req);
@@ -107,7 +179,7 @@ export const createOldQuestion = async (req: AuthRequest, res: Response): Promis
   }
 };
 
-// Update an old question
+// Update old question (admin)
 export const updateOldQuestion = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const errors = validationResult(req);
@@ -146,7 +218,7 @@ export const updateOldQuestion = async (req: AuthRequest, res: Response): Promis
   }
 };
 
-// Delete an old question
+// Delete old question (admin)
 export const deleteOldQuestion = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;

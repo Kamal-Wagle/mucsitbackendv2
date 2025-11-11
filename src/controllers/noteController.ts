@@ -4,22 +4,96 @@ import { AuthRequest } from '../middleware/auth';
 import { validationResult } from 'express-validator';
 import mongoose from 'mongoose';
 
-// Get all notes
-export const getAllNotes = async (req: AuthRequest, res: Response): Promise<void> => {
+// Search & Filter notes
+export const searchAndFilterNotes = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const notes = await Note.find()
+    const {
+      search,
+      subject,
+      semester,
+      faculty,
+      year,
+      isPublished,
+      sortBy,
+      order,
+      page = 1,
+      limit = 10
+    } = req.query;
+
+    const query: any = {};
+
+    // Text search in title or description
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    if (subject) query.subject = subject;
+    if (semester) query.semester = semester;
+    if (faculty) query.faculty = faculty;
+    if (year) query.year = Number(year);
+    if (isPublished !== undefined) query.isPublished = isPublished === 'true';
+
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const sortOrder: any = {};
+    if (sortBy) {
+      sortOrder[sortBy as string] = order === 'asc' ? 1 : -1;
+    } else {
+      sortOrder.createdAt = -1; // default sort by newest
+    }
+
+    const notes = await Note.find(query)
       .populate('author', 'name email')
-      .sort({ createdAt: -1 });
+      .sort(sortOrder)
+      .skip(skip)
+      .limit(Number(limit));
+
+    const total = await Note.countDocuments(query);
 
     res.json({
       count: notes.length,
+      total,
+      page: Number(page),
+      totalPages: Math.ceil(total / Number(limit)),
       notes
     });
   } catch (error) {
-    console.error('Get notes error:', error);
+    console.error('Search & Filter notes error:', error);
+    res.status(500).json({ error: 'Server error while searching notes' });
+  }
+};
+
+// Get all notes with pagination
+export const getAllNotesPaginated = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { page = 1, limit = 10 } = req.query;
+
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const notes = await Note.find()
+      .populate('author', 'name email')
+      .sort({ createdAt: -1 }) // newest first
+      .skip(skip)
+      .limit(Number(limit));
+
+    const total = await Note.countDocuments();
+
+    res.json({
+      count: notes.length,
+      total,
+      page: Number(page),
+      totalPages: Math.ceil(total / Number(limit)),
+      notes
+    });
+  } catch (error) {
+    console.error('Get all notes paginated error:', error);
     res.status(500).json({ error: 'Server error while fetching notes' });
   }
 };
+
 
 // Get note by ID
 export const getNoteById = async (req: AuthRequest, res: Response): Promise<void> => {

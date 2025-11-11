@@ -1,9 +1,10 @@
 import { Router } from 'express';
-import { body, param } from 'express-validator';
+import { body, param, query } from 'express-validator';
 import { authenticate, authorize } from '../middleware/auth';
 import { UserRole } from '../models/User';
 import {
-  getAllBlogs,
+  getAllBlogsPaginated,
+  searchAndFilterBlogs,
   getBlogById,
   createBlog,
   updateBlog,
@@ -12,8 +13,27 @@ import {
 
 const router = Router();
 
-// Get all blogs (public)
-router.get('/', getAllBlogs);
+// Get all blogs with pagination (public)
+router.get(
+  '/',
+  [
+    query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),
+    query('limit').optional().isInt({ min: 1 }).withMessage('Limit must be a positive integer')
+  ],
+  getAllBlogsPaginated
+);
+
+// Search & filter blogs (public)
+router.get(
+  '/search',
+  [
+    query('page').optional().isInt({ min: 1 }),
+    query('limit').optional().isInt({ min: 1 }),
+    query('sortBy').optional().isString(),
+    query('order').optional().isIn(['asc', 'desc'])
+  ],
+  searchAndFilterBlogs
+);
 
 // Get blog by ID (authenticated)
 router.get(
@@ -37,7 +57,6 @@ router.post(
     body('category').optional().trim(),
     body('description').optional().trim(),
     body('fileUrl').notEmpty().withMessage('File URL is required'),
-    body('imageUrl').optional().trim(),
     body('seoKeywords').optional().isArray(),
     body('seoDescription').optional().trim(),
     body('isPublished').optional().isBoolean(),
@@ -62,7 +81,6 @@ router.put(
     body('category').optional().trim(),
     body('description').optional().trim(),
     body('fileUrl').optional().trim(),
-    body('imageUrl').optional().trim(),
     body('seoKeywords').optional().isArray(),
     body('seoDescription').optional().trim(),
     body('isPublished').optional().isBoolean(),

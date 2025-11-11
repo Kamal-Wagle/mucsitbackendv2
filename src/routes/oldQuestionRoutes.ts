@@ -1,9 +1,10 @@
 import { Router } from 'express';
-import { body, param } from 'express-validator';
+import { body, param, query } from 'express-validator';
 import { authenticate, authorize } from '../middleware/auth';
 import { UserRole } from '../models/User';
 import {
-  getAllOldQuestions,
+  getAllOldQuestionsPaginated,
+  searchAndFilterOldQuestions,
   getOldQuestionById,
   createOldQuestion,
   updateOldQuestion,
@@ -12,8 +13,27 @@ import {
 
 const router = Router();
 
-// Get all old questions (public)
-router.get('/', getAllOldQuestions);
+// Get all old questions with pagination (public)
+router.get(
+  '/',
+  [
+    query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),
+    query('limit').optional().isInt({ min: 1 }).withMessage('Limit must be a positive integer')
+  ],
+  getAllOldQuestionsPaginated
+);
+
+// Search & filter old questions (public)
+router.get(
+  '/search',
+  [
+    query('page').optional().isInt({ min: 1 }),
+    query('limit').optional().isInt({ min: 1 }),
+    query('sortBy').optional().isString(),
+    query('order').optional().isIn(['asc', 'desc'])
+  ],
+  searchAndFilterOldQuestions
+);
 
 // Get old question by ID (authenticated)
 router.get(

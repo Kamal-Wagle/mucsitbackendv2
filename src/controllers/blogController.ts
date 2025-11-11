@@ -4,28 +4,89 @@ import { AuthRequest } from '../middleware/auth';
 import { validationResult } from 'express-validator';
 import mongoose from 'mongoose';
 
-// okay
-// okay
-// okay
-
-
-
-
-
-
-// Get all blogs
-export const getAllBlogs = async (req: AuthRequest, res: Response): Promise<void> => {
+// Search & Filter Blogs
+export const searchAndFilterBlogs = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const blogs = await Blog.find()
+    const {
+      search,
+      category,
+      isPublished,
+      isFeatured,
+      sortBy,
+      order,
+      page = 1,
+      limit = 10
+    } = req.query;
+
+    const query: any = {};
+
+    // Text search in title, excerpt, or description
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { excerpt: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    if (category) query.category = category;
+    if (isPublished !== undefined) query.isPublished = isPublished === 'true';
+    if (isFeatured !== undefined) query.isFeatured = isFeatured === 'true';
+
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const sortOrder: any = {};
+    if (sortBy) {
+      sortOrder[sortBy as string] = order === 'asc' ? 1 : -1;
+    } else {
+      sortOrder.createdAt = -1;
+    }
+
+    const blogs = await Blog.find(query)
       .populate('author', 'name email')
-      .sort({ createdAt: -1 });
+      .sort(sortOrder)
+      .skip(skip)
+      .limit(Number(limit));
+
+    const total = await Blog.countDocuments(query);
 
     res.json({
       count: blogs.length,
+      total,
+      page: Number(page),
+      totalPages: Math.ceil(total / Number(limit)),
       blogs
     });
   } catch (error) {
-    console.error('Get blogs error:', error);
+    console.error('Search & Filter blogs error:', error);
+    res.status(500).json({ error: 'Server error while searching blogs' });
+  }
+};
+
+// Get all blogs with pagination
+export const getAllBlogsPaginated = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { page = 1, limit = 10 } = req.query;
+
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const blogs = await Blog.find()
+      .populate('author', 'name email')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(Number(limit));
+
+    const total = await Blog.countDocuments();
+
+    res.json({
+      count: blogs.length,
+      total,
+      page: Number(page),
+      totalPages: Math.ceil(total / Number(limit)),
+      blogs
+    });
+  } catch (error) {
+    console.error('Get all blogs paginated error:', error);
     res.status(500).json({ error: 'Server error while fetching blogs' });
   }
 };
@@ -54,7 +115,7 @@ export const getBlogById = async (req: AuthRequest, res: Response): Promise<void
   }
 };
 
-// Create a new blog
+// Create blog (admin)
 export const createBlog = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const errors = validationResult(req);
@@ -110,7 +171,7 @@ export const createBlog = async (req: AuthRequest, res: Response): Promise<void>
   }
 };
 
-// Update blog
+// Update blog (admin)
 export const updateBlog = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const errors = validationResult(req);
@@ -146,8 +207,7 @@ export const updateBlog = async (req: AuthRequest, res: Response): Promise<void>
   }
 };
 
-
-// Delete a blog
+// Delete blog (admin)
 export const deleteBlog = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
