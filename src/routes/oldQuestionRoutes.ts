@@ -38,7 +38,6 @@ router.get(
 // Get old question by ID (authenticated)
 router.get(
   '/:id',
-  authenticate,
   param('id').isMongoId().withMessage('Invalid old question ID'),
   getOldQuestionById
 );

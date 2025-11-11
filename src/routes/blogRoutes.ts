@@ -38,7 +38,6 @@ router.get(
 // Get blog by ID (authenticated)
 router.get(
   '/:id',
-  authenticate,
   param('id').isMongoId().withMessage('Invalid blog ID'),
   getBlogById
 );
